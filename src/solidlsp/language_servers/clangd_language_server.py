@@ -321,9 +321,8 @@ class ClangdLanguageServer(SolidLanguageServer):
         }
 
         self.server.notify.initialized({})
-        # set ready flag, clangd sends no meaningful notification when ready
-        # TODO This defeats the purpose of the event; we should wait for the server to actually be ready
-        self.server_ready.set()
 
-        # wait for server to be ready
-        self.server_ready.wait()
+        # wait for server to be ready via experimental/serverStatus notification
+        # clangd sends {"quiescent": true} when it has finished indexing and is ready
+        log.info("Waiting for clangd to be ready (experimental/serverStatus notification)...")
+        self.server_ready.wait(timeout=60.0)  # 60 second timeout for large projects
