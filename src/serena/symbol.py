@@ -833,6 +833,148 @@ class LanguageServerSymbolRetriever:
 
         return [ReferenceInLanguageServerSymbol.from_lsp_reference(r) for r in references]
 
+    # ============================================================================
+    # Call Hierarchy Methods
+    # ============================================================================
+
+    def get_incoming_calls(self, name_path: str, relative_path: str) -> list[Any]:
+        """
+        Get all callers (incoming calls) of the symbol at the given name path.
+
+        :param name_path: the name path of the symbol
+        :param relative_path: the relative path to the file containing the symbol
+        :return: a list of call hierarchy items representing callers
+        """
+        try:
+            symbol = self.find_unique(name_path, within_relative_path=relative_path)
+        except ValueError:
+            return []
+
+        location = symbol.get_location()
+        if location is None or location.line is None or location.column is None:
+            return []
+
+        lang_server = self.get_language_server(relative_path)
+        return lang_server.request_call_hierarchy_incoming(relative_path, location.line, location.column) or []
+
+    def get_outgoing_calls(self, name_path: str, relative_path: str) -> list[Any]:
+        """
+        Get all callees (outgoing calls) of the symbol at the given name path.
+
+        :param name_path: the name path of the symbol
+        :param relative_path: the relative path to the file containing the symbol
+        :return: a list of call hierarchy items representing callees
+        """
+        try:
+            symbol = self.find_unique(name_path, within_relative_path=relative_path)
+        except ValueError:
+            return []
+
+        location = symbol.get_location()
+        if location is None or location.line is None or location.column is None:
+            return []
+
+        lang_server = self.get_language_server(relative_path)
+        return lang_server.request_call_hierarchy_outgoing(relative_path, location.line, location.column) or []
+
+    # ============================================================================
+    # Type Hierarchy Methods
+    # ============================================================================
+
+    def get_supertypes(self, name_path: str, relative_path: str) -> list[Any]:
+        """
+        Get all base types (supertypes) of the type at the given name path.
+
+        :param name_path: the name path of the type
+        :param relative_path: the relative path to the file containing the type
+        :return: a list of type hierarchy items representing base types
+        """
+        try:
+            symbol = self.find_unique(name_path, within_relative_path=relative_path)
+        except ValueError:
+            return []
+
+        location = symbol.get_location()
+        if location is None or location.line is None or location.column is None:
+            return []
+
+        lang_server = self.get_language_server(relative_path)
+        return lang_server.request_type_hierarchy_supertypes(relative_path, location.line, location.column) or []
+
+    def get_subtypes(self, name_path: str, relative_path: str) -> list[Any]:
+        """
+        Get all derived types (subtypes) of the type at the given name path.
+
+        :param name_path: the name path of the type
+        :param relative_path: the relative path to the file containing the type
+        :return: a list of type hierarchy items representing derived types
+        """
+        try:
+            symbol = self.find_unique(name_path, within_relative_path=relative_path)
+        except ValueError:
+            return []
+
+        location = symbol.get_location()
+        if location is None or location.line is None or location.column is None:
+            return []
+
+        lang_server = self.get_language_server(relative_path)
+        return lang_server.request_type_hierarchy_subtypes(relative_path, location.line, location.column) or []
+
+    # ============================================================================
+    # Document Feature Methods
+    # ============================================================================
+
+    def get_inlay_hints(self, relative_path: str) -> list[Any]:
+        """
+        Get inlay hints for a file.
+
+        :param relative_path: the relative path to the file
+        :return: a list of inlay hints
+        """
+        lang_server = self.get_language_server(relative_path)
+        return lang_server.request_inlay_hints(relative_path) or []
+
+    def get_document_links(self, relative_path: str) -> list[Any]:
+        """
+        Get document links (e.g., #include directives) for a file.
+
+        :param relative_path: the relative path to the file
+        :return: a list of document links
+        """
+        lang_server = self.get_language_server(relative_path)
+        return lang_server.request_document_links(relative_path) or []
+
+    def get_folding_ranges(self, relative_path: str) -> list[Any]:
+        """
+        Get folding ranges for a file.
+
+        :param relative_path: the relative path to the file
+        :return: a list of folding ranges
+        """
+        lang_server = self.get_language_server(relative_path)
+        return lang_server.request_folding_ranges(relative_path) or []
+
+    def get_document_highlights(self, name_path: str, relative_path: str) -> list[Any]:
+        """
+        Get document highlights for the symbol at the given name path.
+
+        :param name_path: the name path of the symbol
+        :param relative_path: the relative path to the file containing the symbol
+        :return: a list of document highlights
+        """
+        try:
+            symbol = self.find_unique(name_path, within_relative_path=relative_path)
+        except ValueError:
+            return []
+
+        location = symbol.get_location()
+        if location is None or location.line is None or location.column is None:
+            return []
+
+        lang_server = self.get_language_server(relative_path)
+        return lang_server.request_document_highlight(relative_path, location.line, location.column) or []
+
     def get_symbol_overview(self, relative_path: str) -> dict[str, list[LanguageServerSymbol]]:
         """
         :param relative_path: the path of the file for which to get the symbol overview

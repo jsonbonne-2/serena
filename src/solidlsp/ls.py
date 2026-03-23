@@ -2199,6 +2199,346 @@ class SolidLanguageServer(ABC):
                 self.delete_text_between_positions(relative_path, start_pos, end_pos)
                 self.insert_text_at_position(relative_path, start_pos["line"], start_pos["character"], edit["newText"])
 
+    # ============================================================================
+    # Call Hierarchy Methods
+    # ============================================================================
+
+    def request_call_hierarchy_incoming(
+        self, relative_file_path: str, line: int, column: int
+    ) -> list[lsp_types.CallHierarchyIncomingCall] | None:
+        """
+        Find all callers (incoming calls) of the symbol at the given position.
+
+        Uses [callHierarchy/incomingCalls](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#callHierarchy_incomingCalls).
+
+        :param relative_file_path: The relative path to the file containing the symbol
+        :param line: The 0-indexed line number of the symbol
+        :param column: The 0-indexed column number of the symbol
+        :return: A list of incoming calls, or None if not supported
+        """
+        if not self.server_started:
+            log.error("request_call_hierarchy_incoming called before language server started")
+            raise SolidLSPException("Language Server not started")
+
+        with self.open_file(relative_file_path):
+            # First prepare the call hierarchy
+            prepare_params = cast(
+                lsp_types.CallHierarchyPrepareParams,
+                {
+                    LSPConstants.TEXT_DOCUMENT: {
+                        LSPConstants.URI: pathlib.Path(str(PurePath(self.repository_root_path, relative_file_path))).as_uri()
+                    },
+                    LSPConstants.POSITION: {
+                        LSPConstants.LINE: line,
+                        LSPConstants.CHARACTER: column,
+                    },
+                },
+            )
+            items = self.server.send.prepare_call_hierarchy(prepare_params)
+
+            if not items:
+                return None
+
+            # Get incoming calls for each item
+            all_calls: list[lsp_types.CallHierarchyIncomingCall] = []
+            for item in items:
+                incoming_params = cast(
+                    lsp_types.CallHierarchyIncomingCallsParams,
+                    {"item": item},
+                )
+                calls = self.server.send.incoming_calls(incoming_params)
+                if calls:
+                    all_calls.extend(calls)
+
+            return all_calls if all_calls else None
+
+    def request_call_hierarchy_outgoing(
+        self, relative_file_path: str, line: int, column: int
+    ) -> list[lsp_types.CallHierarchyOutgoingCall] | None:
+        """
+        Find all callees (outgoing calls) of the symbol at the given position.
+
+        Uses [callHierarchy/outgoingCalls](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#callHierarchy_outgoingCalls).
+
+        :param relative_file_path: The relative path to the file containing the symbol
+        :param line: The 0-indexed line number of the symbol
+        :param column: The 0-indexed column number of the symbol
+        :return: A list of outgoing calls, or None if not supported
+        """
+        if not self.server_started:
+            log.error("request_call_hierarchy_outgoing called before language server started")
+            raise SolidLSPException("Language Server not started")
+
+        with self.open_file(relative_file_path):
+            # First prepare the call hierarchy
+            prepare_params = cast(
+                lsp_types.CallHierarchyPrepareParams,
+                {
+                    LSPConstants.TEXT_DOCUMENT: {
+                        LSPConstants.URI: pathlib.Path(str(PurePath(self.repository_root_path, relative_file_path))).as_uri()
+                    },
+                    LSPConstants.POSITION: {
+                        LSPConstants.LINE: line,
+                        LSPConstants.CHARACTER: column,
+                    },
+                },
+            )
+            items = self.server.send.prepare_call_hierarchy(prepare_params)
+
+            if not items:
+                return None
+
+            # Get outgoing calls for each item
+            all_calls: list[lsp_types.CallHierarchyOutgoingCall] = []
+            for item in items:
+                outgoing_params = cast(
+                    lsp_types.CallHierarchyOutgoingCallsParams,
+                    {"item": item},
+                )
+                calls = self.server.send.outgoing_calls(outgoing_params)
+                if calls:
+                    all_calls.extend(calls)
+
+            return all_calls if all_calls else None
+
+    # ============================================================================
+    # Type Hierarchy Methods
+    # ============================================================================
+
+    def request_type_hierarchy_supertypes(
+        self, relative_file_path: str, line: int, column: int
+    ) -> list[lsp_types.TypeHierarchyItem] | None:
+        """
+        Find all base types (supertypes) of the type at the given position.
+
+        Uses [typeHierarchy/supertypes](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#typeHierarchy_supertypes).
+
+        :param relative_file_path: The relative path to the file containing the type
+        :param line: The 0-indexed line number of the type
+        :param column: The 0-indexed column number of the type
+        :return: A list of supertype items, or None if not supported
+        """
+        if not self.server_started:
+            log.error("request_type_hierarchy_supertypes called before language server started")
+            raise SolidLSPException("Language Server not started")
+
+        with self.open_file(relative_file_path):
+            # First prepare the type hierarchy
+            prepare_params = cast(
+                lsp_types.TypeHierarchyPrepareParams,
+                {
+                    LSPConstants.TEXT_DOCUMENT: {
+                        LSPConstants.URI: pathlib.Path(str(PurePath(self.repository_root_path, relative_file_path))).as_uri()
+                    },
+                    LSPConstants.POSITION: {
+                        LSPConstants.LINE: line,
+                        LSPConstants.CHARACTER: column,
+                    },
+                },
+            )
+            items = self.server.send.prepare_type_hierarchy(prepare_params)
+
+            if not items:
+                return None
+
+            # Get supertypes for each item
+            all_types: list[lsp_types.TypeHierarchyItem] = []
+            for item in items:
+                supertypes_params = cast(
+                    lsp_types.TypeHierarchySupertypesParams,
+                    {"item": item},
+                )
+                types = self.server.send.type_hierarchy_supertypes(supertypes_params)
+                if types:
+                    all_types.extend(types)
+
+            return all_types if all_types else None
+
+    def request_type_hierarchy_subtypes(self, relative_file_path: str, line: int, column: int) -> list[lsp_types.TypeHierarchyItem] | None:
+        """
+        Find all derived types (subtypes) of the type at the given position.
+
+        Uses [typeHierarchy/subtypes](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#typeHierarchy_subtypes).
+
+        :param relative_file_path: The relative path to the file containing the type
+        :param line: The 0-indexed line number of the type
+        :param column: The 0-indexed column number of the type
+        :return: A list of subtype items, or None if not supported
+        """
+        if not self.server_started:
+            log.error("request_type_hierarchy_subtypes called before language server started")
+            raise SolidLSPException("Language Server not started")
+
+        with self.open_file(relative_file_path):
+            # First prepare the type hierarchy
+            prepare_params = cast(
+                lsp_types.TypeHierarchyPrepareParams,
+                {
+                    LSPConstants.TEXT_DOCUMENT: {
+                        LSPConstants.URI: pathlib.Path(str(PurePath(self.repository_root_path, relative_file_path))).as_uri()
+                    },
+                    LSPConstants.POSITION: {
+                        LSPConstants.LINE: line,
+                        LSPConstants.CHARACTER: column,
+                    },
+                },
+            )
+            items = self.server.send.prepare_type_hierarchy(prepare_params)
+
+            if not items:
+                return None
+
+            # Get subtypes for each item
+            all_types: list[lsp_types.TypeHierarchyItem] = []
+            for item in items:
+                subtypes_params = cast(
+                    lsp_types.TypeHierarchySubtypesParams,
+                    {"item": item},
+                )
+                types = self.server.send.type_hierarchy_subtypes(subtypes_params)
+                if types:
+                    all_types.extend(types)
+
+            return all_types if all_types else None
+
+    # ============================================================================
+    # Inlay Hints Methods
+    # ============================================================================
+
+    def request_inlay_hints(self, relative_file_path: str) -> list[lsp_types.InlayHint] | None:
+        """
+        Get inlay hints for a file.
+
+        Inlay hints are inline annotations that show additional information like
+        parameter names, type information, etc.
+
+        Uses [textDocument/inlayHint](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_inlayHint).
+
+        :param relative_file_path: The relative path to the file
+        :return: A list of inlay hints, or None if not supported
+        """
+        if not self.server_started:
+            log.error("request_inlay_hints called before language server started")
+            raise SolidLSPException("Language Server not started")
+
+        with self.open_file(relative_file_path) as file_buffer:
+            params = cast(
+                lsp_types.InlayHintParams,
+                {
+                    LSPConstants.TEXT_DOCUMENT: {
+                        LSPConstants.URI: pathlib.Path(str(PurePath(self.repository_root_path, relative_file_path))).as_uri()
+                    },
+                    LSPConstants.RANGE: {
+                        "start": {"line": 0, "character": 0},
+                        "end": {"line": len(file_buffer.contents.split("\n")), "character": 0},
+                    },
+                },
+            )
+            return self.server.send.inlay_hint(params)
+
+    # ============================================================================
+    # Document Links Methods
+    # ============================================================================
+
+    def request_document_links(self, relative_file_path: str) -> list[lsp_types.DocumentLink] | None:
+        """
+        Get document links in a file.
+
+        Document links are typically used for #include directives to link to
+        the referenced files.
+
+        Uses [textDocument/documentLink](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_documentLink).
+
+        :param relative_file_path: The relative path to the file
+        :return: A list of document links, or None if not supported
+        """
+        if not self.server_started:
+            log.error("request_document_links called before language server started")
+            raise SolidLSPException("Language Server not started")
+
+        with self.open_file(relative_file_path):
+            params = cast(
+                lsp_types.DocumentLinkParams,
+                {
+                    LSPConstants.TEXT_DOCUMENT: {
+                        LSPConstants.URI: pathlib.Path(str(PurePath(self.repository_root_path, relative_file_path))).as_uri()
+                    },
+                },
+            )
+            return self.server.send.document_link(params)
+
+    # ============================================================================
+    # Folding Range Methods
+    # ============================================================================
+
+    def request_folding_ranges(self, relative_file_path: str) -> list[lsp_types.FoldingRange] | None:
+        """
+        Get folding ranges in a file.
+
+        Folding ranges represent regions of code that can be collapsed, such as
+        functions, classes, namespaces, and preprocessor blocks.
+
+        Uses [textDocument/foldingRange](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_foldingRange).
+
+        :param relative_file_path: The relative path to the file
+        :return: A list of folding ranges, or None if not supported
+        """
+        if not self.server_started:
+            log.error("request_folding_ranges called before language server started")
+            raise SolidLSPException("Language Server not started")
+
+        with self.open_file(relative_file_path):
+            params = cast(
+                lsp_types.FoldingRangeParams,
+                {
+                    LSPConstants.TEXT_DOCUMENT: {
+                        LSPConstants.URI: pathlib.Path(str(PurePath(self.repository_root_path, relative_file_path))).as_uri()
+                    },
+                },
+            )
+            return self.server.send.folding_range(params)
+
+    # ============================================================================
+    # Document Highlight Methods
+    # ============================================================================
+
+    def request_document_highlight(self, relative_file_path: str, line: int, column: int) -> list[lsp_types.DocumentHighlight] | None:
+        """
+        Get document highlights for the symbol at the given position.
+
+        Document highlights show all occurrences of the symbol within the
+        current document.
+
+        Uses [textDocument/documentHighlight](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_documentHighlight).
+
+        :param relative_file_path: The relative path to the file containing the symbol
+        :param line: The 0-indexed line number of the symbol
+        :param column: The 0-indexed column number of the symbol
+        :return: A list of document highlights, or None if not supported
+        """
+        if not self.server_started:
+            log.error("request_document_highlight called before language server started")
+            raise SolidLSPException("Language Server not started")
+
+        with self.open_file(relative_file_path):
+            params = cast(
+                lsp_types.DocumentHighlightParams,
+                {
+                    LSPConstants.TEXT_DOCUMENT: {
+                        LSPConstants.URI: pathlib.Path(str(PurePath(self.repository_root_path, relative_file_path))).as_uri()
+                    },
+                    LSPConstants.POSITION: {
+                        LSPConstants.LINE: line,
+                        LSPConstants.CHARACTER: column,
+                    },
+                },
+            )
+            return self.server.send.document_highlight(params)
+
+    # ============================================================================
+    # Lifecycle Methods
+    # ============================================================================
+
     def start(self) -> "SolidLanguageServer":
         """
         Starts the language server process and connects to it. Call shutdown when ready.

@@ -339,3 +339,183 @@ class RenameSymbolTool(Tool, ToolMarkerSymbolicEdit):
         code_editor = self.create_code_editor()
         status_message = code_editor.rename_symbol(name_path, relative_file_path=relative_path, new_name=new_name)
         return status_message
+
+
+# ============================================================================
+# Call Hierarchy Tools
+# ============================================================================
+
+
+class GetCallHierarchyIncomingTool(Tool, ToolMarkerSymbolicRead):
+    """
+    Finds all callers (incoming calls) of a symbol using the language server's call hierarchy feature.
+    """
+
+    def apply(self, name_path: str, relative_path: str, max_answer_chars: int = -1) -> str:
+        """
+        Finds all functions/methods that call the symbol at the given `name_path`.
+        This is useful for understanding how a function is used in the codebase.
+
+        :param name_path: for finding the symbol, same logic as in the `find_symbol` tool.
+        :param relative_path: the relative path to the file containing the symbol.
+        :param max_answer_chars: same as in the `find_symbol` tool.
+        :return: a JSON list of callers with their locations.
+        """
+        symbol_retriever = self.create_language_server_symbol_retriever()
+        calls = symbol_retriever.get_incoming_calls(name_path, relative_path)
+        result = self._to_json(calls)
+        return self._limit_length(result, max_answer_chars)
+
+
+class GetCallHierarchyOutgoingTool(Tool, ToolMarkerSymbolicRead):
+    """
+    Finds all callees (outgoing calls) of a symbol using the language server's call hierarchy feature.
+    """
+
+    def apply(self, name_path: str, relative_path: str, max_answer_chars: int = -1) -> str:
+        """
+        Finds all functions/methods that are called by the symbol at the given `name_path`.
+        This is useful for understanding what dependencies a function has.
+
+        :param name_path: for finding the symbol, same logic as in the `find_symbol` tool.
+        :param relative_path: the relative path to the file containing the symbol.
+        :param max_answer_chars: same as in the `find_symbol` tool.
+        :return: a JSON list of callees with their locations.
+        """
+        symbol_retriever = self.create_language_server_symbol_retriever()
+        calls = symbol_retriever.get_outgoing_calls(name_path, relative_path)
+        result = self._to_json(calls)
+        return self._limit_length(result, max_answer_chars)
+
+
+# ============================================================================
+# Type Hierarchy Tools
+# ============================================================================
+
+
+class GetTypeHierarchySupertypesTool(Tool, ToolMarkerSymbolicRead):
+    """
+    Finds all base types (supertypes) of a type using the language server's type hierarchy feature.
+    """
+
+    def apply(self, name_path: str, relative_path: str, max_answer_chars: int = -1) -> str:
+        """
+        Finds all base classes/interfaces of the type at the given `name_path`.
+        This is useful for understanding the inheritance hierarchy.
+
+        :param name_path: for finding the type, same logic as in the `find_symbol` tool.
+        :param relative_path: the relative path to the file containing the type.
+        :param max_answer_chars: same as in the `find_symbol` tool.
+        :return: a JSON list of supertypes with their locations.
+        """
+        symbol_retriever = self.create_language_server_symbol_retriever()
+        types = symbol_retriever.get_supertypes(name_path, relative_path)
+        result = self._to_json(types)
+        return self._limit_length(result, max_answer_chars)
+
+
+class GetTypeHierarchySubtypesTool(Tool, ToolMarkerSymbolicRead):
+    """
+    Finds all derived types (subtypes) of a type using the language server's type hierarchy feature.
+    """
+
+    def apply(self, name_path: str, relative_path: str, max_answer_chars: int = -1) -> str:
+        """
+        Finds all classes that inherit from or implement the type at the given `name_path`.
+        This is useful for understanding what types extend a base class or interface.
+
+        :param name_path: for finding the type, same logic as in the `find_symbol` tool.
+        :param relative_path: the relative path to the file containing the type.
+        :param max_answer_chars: same as in the `find_symbol` tool.
+        :return: a JSON list of subtypes with their locations.
+        """
+        symbol_retriever = self.create_language_server_symbol_retriever()
+        types = symbol_retriever.get_subtypes(name_path, relative_path)
+        result = self._to_json(types)
+        return self._limit_length(result, max_answer_chars)
+
+
+# ============================================================================
+# Document Feature Tools
+# ============================================================================
+
+
+class GetInlayHintsTool(Tool, ToolMarkerSymbolicRead):
+    """
+    Gets inlay hints for a file using the language server.
+    """
+
+    def apply(self, relative_path: str, max_answer_chars: int = -1) -> str:
+        """
+        Gets inlay hints for the given file. Inlay hints are inline annotations that show
+        additional information like parameter names, type information, etc.
+
+        :param relative_path: the relative path to the file.
+        :param max_answer_chars: same as in the `find_symbol` tool.
+        :return: a JSON list of inlay hints.
+        """
+        symbol_retriever = self.create_language_server_symbol_retriever()
+        hints = symbol_retriever.get_inlay_hints(relative_path)
+        result = self._to_json(hints)
+        return self._limit_length(result, max_answer_chars)
+
+
+class GetDocumentLinksTool(Tool, ToolMarkerSymbolicRead):
+    """
+    Gets document links (e.g., #include directives) for a file using the language server.
+    """
+
+    def apply(self, relative_path: str, max_answer_chars: int = -1) -> str:
+        """
+        Gets document links for the given file. Document links are typically used for
+        #include directives to link to the referenced files.
+
+        :param relative_path: the relative path to the file.
+        :param max_answer_chars: same as in the `find_symbol` tool.
+        :return: a JSON list of document links.
+        """
+        symbol_retriever = self.create_language_server_symbol_retriever()
+        links = symbol_retriever.get_document_links(relative_path)
+        result = self._to_json(links)
+        return self._limit_length(result, max_answer_chars)
+
+
+class GetFoldingRangesTool(Tool, ToolMarkerSymbolicRead):
+    """
+    Gets folding ranges for a file using the language server.
+    """
+
+    def apply(self, relative_path: str, max_answer_chars: int = -1) -> str:
+        """
+        Gets folding ranges for the given file. Folding ranges represent regions of code
+        that can be collapsed, such as functions, classes, namespaces, and preprocessor blocks.
+
+        :param relative_path: the relative path to the file.
+        :param max_answer_chars: same as in the `find_symbol` tool.
+        :return: a JSON list of folding ranges.
+        """
+        symbol_retriever = self.create_language_server_symbol_retriever()
+        ranges = symbol_retriever.get_folding_ranges(relative_path)
+        result = self._to_json(ranges)
+        return self._limit_length(result, max_answer_chars)
+
+
+class GetDocumentHighlightTool(Tool, ToolMarkerSymbolicRead):
+    """
+    Gets document highlights for a symbol using the language server.
+    """
+
+    def apply(self, name_path: str, relative_path: str, max_answer_chars: int = -1) -> str:
+        """
+        Gets document highlights for the symbol at the given `name_path`.
+        Document highlights show all occurrences of the symbol within the current document.
+
+        :param name_path: for finding the symbol, same logic as in the `find_symbol` tool.
+        :param relative_path: the relative path to the file containing the symbol.
+        :param max_answer_chars: same as in the `find_symbol` tool.
+        :return: a JSON list of document highlights.
+        """
+        symbol_retriever = self.create_language_server_symbol_retriever()
+        highlights = symbol_retriever.get_document_highlights(name_path, relative_path)
+        result = self._to_json(highlights)
+        return self._limit_length(result, max_answer_chars)
