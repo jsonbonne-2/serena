@@ -1,6 +1,5 @@
 import concurrent.futures
 import threading
-import time
 from collections.abc import Callable
 from concurrent.futures import Future
 from dataclasses import dataclass
@@ -18,6 +17,7 @@ T = TypeVar("T")
 class TaskExecutor:
     def __init__(self, name: str):
         self._task_executor_lock = threading.Lock()
+        self._task_executor_condition = threading.Condition(self._task_executor_lock)
         self._task_executor_queue: list[TaskExecutor.Task] = []
         self._task_executor_thread = Thread(target=self._process_task_queue, name=name, daemon=True)
         self._task_executor_thread.start()
@@ -107,14 +107,12 @@ class TaskExecutor:
 
     def _process_task_queue(self) -> None:
         while True:
-            # obtain task from the queue
+            # wait for a task to be available (using condition to avoid polling)
             task: TaskExecutor.Task | None = None
-            with self._task_executor_lock:
-                if len(self._task_executor_queue) > 0:
-                    task = self._task_executor_queue.pop(0)
-            if task is None:
-                time.sleep(0.1)
-                continue
+            with self._task_executor_condition:
+                while len(self._task_executor_queue) == 0:
+                    self._task_executor_condition.wait()
+                task = self._task_executor_queue.pop(0)
 
             # start task execution asynchronously
             with self._task_executor_lock:
@@ -181,7 +179,7 @@ class TaskExecutor:
         :param timeout: the maximum time to wait for task completion in seconds, or None to wait indefinitely
         :return: the task object, through which the task's future result can be accessed
         """
-        with self._task_executor_lock:
+        with self._task_executor_condition:
             if logged:
                 task_prefix_name = f"Task-{self._task_executor_task_index}"
                 self._task_executor_task_index += 1
@@ -192,6 +190,7 @@ class TaskExecutor:
                 log.info(f"Scheduling {task_name}")
             task_obj = self.Task(function=task, name=task_name, logged=logged, timeout=timeout)
             self._task_executor_queue.append(task_obj)
+            self._task_executor_condition.notify()
             return task_obj
 
     def execute_task(self, task: Callable[[], T], name: str | None = None, logged: bool = True, timeout: float | None = None) -> T:
